@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Recipe, HomeSettings } from "@/lib/recipes";
 import {
@@ -11,8 +11,8 @@ import {
   duplicateRecipe,
   loadHomepageSettings,
   saveHomepageSettings,
+  uploadImageAction,
 } from "@/app/actions/recipeActions";
-import RecipeDetailClient from "@/app/recipes/[slug]/RecipeDetailClient";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,6 +42,115 @@ export default function AdminPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [settingsError, setSettingsError] = useState("");
+
+  // Panel split resizing states
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [leftWidthPercent, setLeftWidthPercent] = useState<number>(50);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [isFullscreenPreview, setIsFullscreenPreview] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Real-time preview iframe controller
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // File upload indicator states
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Track window size to adapt splitter
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Panel resize dragging handler
+  const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+
+    const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newLeftWidth = ((mouseMoveEvent.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Limit bounds so panels are always readable
+      if (newLeftWidth > 15 && newLeftWidth < 85) {
+        setLeftWidthPercent(newLeftWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, []);
+
+  // Sync edits to the mobile/desktop simulator iframe in real-time
+  useEffect(() => {
+    if (selectedRecipe && iframeRef.current) {
+      iframeRef.current.contentWindow?.postMessage(
+        { type: "PREVIEW_UPDATE", recipe: selectedRecipe },
+        "*"
+      );
+    }
+  }, [selectedRecipe]);
+
+  // Sync state when simulator iframe confirms it is ready
+  useEffect(() => {
+    const handleParentMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data && e.data.type === "PREVIEW_READY" && selectedRecipe && iframeRef.current) {
+        iframeRef.current.contentWindow?.postMessage(
+          { type: "PREVIEW_UPDATE", recipe: selectedRecipe },
+          "*"
+        );
+      }
+    };
+    window.addEventListener("message", handleParentMessage);
+    return () => window.removeEventListener("message", handleParentMessage);
+  }, [selectedRecipe]);
+
+  // Direct image uploader to Vercel Blob
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    onUploadSuccess: (url: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64String = (reader.result as string).split(",")[1];
+        const res = await uploadImageAction(passphrase, file.name, base64String);
+        setIsUploading(false);
+        if (res.success && res.url) {
+          onUploadSuccess(res.url);
+        } else {
+          setUploadError(res.error || "Upload failed");
+        }
+      };
+      reader.onerror = () => {
+        setIsUploading(false);
+        setUploadError("Failed to read file");
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setIsUploading(false);
+      setUploadError(err.message || "Failed to upload");
+    }
+  };
 
   // Load session from sessionStorage if it exists
   useEffect(() => {
@@ -613,10 +722,13 @@ export default function AdminPage() {
 
         {/* TWO-PANEL WORKSPACE EDITOR MODE */}
         {viewMode === "edit" && selectedRecipe && (
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full">
+          <div ref={containerRef} className="flex-1 flex flex-col md:flex-row overflow-hidden w-full relative">
             
             {/* LEFT PANEL: Dynamic Workspaces Editor Form */}
-            <div className="w-full md:w-1/2 border-r border-sand-border/50 bg-surface-bright flex flex-col overflow-y-auto p-6 gap-6">
+            <div 
+              className="w-full md:flex-shrink-0 border-r border-sand-border/50 bg-surface-bright flex flex-col overflow-y-auto p-6 gap-6"
+              style={{ width: isMobile ? "100%" : isFullscreenPreview ? "0%" : `${leftWidthPercent}%`, display: isFullscreenPreview ? "none" : "flex" }}
+            >
               
               {/* Form header & importer */}
               <div className="flex justify-between items-center border-b border-sand-border/30 pb-3">
@@ -718,7 +830,21 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="font-body-sm text-[12px] font-semibold text-brown-mid">Cover Image URL</label>
+                    <label className="font-body-sm text-[12px] font-semibold text-brown-mid flex justify-between items-center select-none">
+                      <span>Cover Image URL</span>
+                      <label className="text-[10px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5">
+                        <span className="material-symbols-outlined text-[12px] font-bold">cloud_upload</span>
+                        <span>Upload Direct</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageUpload(e, (url) => {
+                            setSelectedRecipe({ ...selectedRecipe, coverImage: url });
+                          })}
+                        />
+                      </label>
+                    </label>
                     <input
                       type="text"
                       value={selectedRecipe.coverImage}
@@ -815,29 +941,48 @@ export default function AdminPage() {
                       )}
 
                       {block.type === "hero-image" && (
-                        <div className="grid grid-cols-2 gap-3">
-                          <input
-                            type="text"
-                            placeholder="Image URL"
-                            value={block.src}
-                            onChange={(e) => {
-                              const blocksCopy = [...(selectedRecipe.blocks || [])];
-                              blocksCopy[bIdx].src = e.target.value;
-                              setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
-                            }}
-                            className="bg-surface-bright border border-sand-border outline-none px-3 py-2 rounded-lg font-body-sm text-body-sm"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Alt description"
-                            value={block.alt}
-                            onChange={(e) => {
-                              const blocksCopy = [...(selectedRecipe.blocks || [])];
-                              blocksCopy[bIdx].alt = e.target.value;
-                              setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
-                            }}
-                            className="bg-surface-bright border border-sand-border outline-none px-3 py-2 rounded-lg font-body-sm text-body-sm"
-                          />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex justify-between items-center select-none">
+                            <span className="font-body-sm text-[11px] font-semibold text-brown-mid">Image Source & Alt Description</span>
+                            <label className="text-[10px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[12px] font-bold">cloud_upload</span>
+                              <span>Upload File</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleImageUpload(e, (url) => {
+                                  const blocksCopy = [...(selectedRecipe.blocks || [])];
+                                  blocksCopy[bIdx].src = url;
+                                  setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
+                                })}
+                              />
+                            </label>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              placeholder="Image URL"
+                              value={block.src}
+                              onChange={(e) => {
+                                const blocksCopy = [...(selectedRecipe.blocks || [])];
+                                blocksCopy[bIdx].src = e.target.value;
+                                setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
+                              }}
+                              className="bg-surface-bright border border-sand-border outline-none px-3 py-2 rounded-lg font-body-sm text-body-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Alt description"
+                              value={block.alt}
+                              onChange={(e) => {
+                                const blocksCopy = [...(selectedRecipe.blocks || [])];
+                                blocksCopy[bIdx].alt = e.target.value;
+                                setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
+                              }}
+                              className="bg-surface-bright border border-sand-border outline-none px-3 py-2 rounded-lg font-body-sm text-body-sm"
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -1025,40 +1170,59 @@ export default function AdminPage() {
                       {block.type === "gallery" && (
                         <div className="space-y-3">
                           {block.images?.map((img: any, gIdx: number) => (
-                            <div key={gIdx} className="grid grid-cols-2 gap-2 border border-sand-border/40 p-2 rounded-lg bg-surface-soft">
-                              <input
-                                type="text"
-                                placeholder="Image URL"
-                                value={img.src}
-                                onChange={(e) => {
-                                  const blocksCopy = [...(selectedRecipe.blocks || [])];
-                                  blocksCopy[bIdx].images[gIdx].src = e.target.value;
-                                  setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
-                                }}
-                                className="bg-surface-bright border border-sand-border outline-none px-2 py-1 rounded font-body-sm text-[11px]"
-                              />
-                              <div className="flex gap-1.5 items-center">
+                            <div key={gIdx} className="flex flex-col gap-2 border border-sand-border/40 p-3 rounded-lg bg-surface-soft/60">
+                              <div className="flex justify-between items-center select-none">
+                                <span className="font-body-sm text-[11px] font-semibold text-brown-muted">Gallery Image {gIdx + 1}</span>
+                                <label className="text-[10px] text-secondary font-bold hover:underline cursor-pointer flex items-center gap-0.5">
+                                  <span className="material-symbols-outlined text-[12px] font-bold">cloud_upload</span>
+                                  <span>Upload File</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleImageUpload(e, (url) => {
+                                      const blocksCopy = [...(selectedRecipe.blocks || [])];
+                                      blocksCopy[bIdx].images[gIdx].src = url;
+                                      setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
+                                    })}
+                                  />
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
                                 <input
                                   type="text"
-                                  placeholder="Caption"
-                                  value={img.caption}
+                                  placeholder="Image URL"
+                                  value={img.src}
                                   onChange={(e) => {
                                     const blocksCopy = [...(selectedRecipe.blocks || [])];
-                                    blocksCopy[bIdx].images[gIdx].caption = e.target.value;
+                                    blocksCopy[bIdx].images[gIdx].src = e.target.value;
                                     setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
                                   }}
-                                  className="bg-surface-bright border border-sand-border outline-none px-2 py-1 rounded font-body-sm text-[11px] flex-1"
+                                  className="bg-surface-bright border border-sand-border outline-none px-2.5 py-1.5 rounded font-body-sm text-[11px]"
                                 />
-                                <button
-                                  onClick={() => {
-                                    const blocksCopy = [...(selectedRecipe.blocks || [])];
-                                    blocksCopy[bIdx].images.splice(gIdx, 1);
-                                    setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
-                                  }}
-                                  className="text-red-500 font-bold cursor-pointer"
-                                >
-                                  ×
-                                </button>
+                                <div className="flex gap-1.5 items-center">
+                                  <input
+                                    type="text"
+                                    placeholder="Caption"
+                                    value={img.caption}
+                                    onChange={(e) => {
+                                      const blocksCopy = [...(selectedRecipe.blocks || [])];
+                                      blocksCopy[bIdx].images[gIdx].caption = e.target.value;
+                                      setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
+                                    }}
+                                    className="bg-surface-bright border border-sand-border outline-none px-2.5 py-1.5 rounded font-body-sm text-[11px] flex-1"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const blocksCopy = [...(selectedRecipe.blocks || [])];
+                                      blocksCopy[bIdx].images.splice(gIdx, 1);
+                                      setSelectedRecipe({ ...selectedRecipe, blocks: blocksCopy });
+                                    }}
+                                    className="text-red-500 font-bold cursor-pointer text-sm"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -1141,35 +1305,60 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+            {/* DIVIDER SPLITTER BAR */}
+            {!isFullscreenPreview && (
+              <div
+                onMouseDown={startResizing}
+                className={`hidden md:block w-1.5 hover:w-2 bg-sand-border/30 hover:bg-secondary/40 cursor-col-resize transition-all active:bg-secondary/70 select-none z-20 flex-shrink-0 border-l border-r border-sand-border/10 ${
+                  isResizing ? "bg-secondary/50 w-2.5" : ""
+                }`}
+                title="Drag to resize panels"
+              />
+            )}
 
             {/* RIGHT PANEL: True Real-Time Live Preview Simulator */}
-            <div className="w-full md:w-1/2 bg-background flex flex-col border-l border-sand-border/30 overflow-hidden relative">
+            <div 
+              className="w-full bg-background flex flex-col border-l border-sand-border/30 overflow-hidden relative"
+              style={{ width: isMobile ? "100%" : isFullscreenPreview ? "100%" : `${100 - leftWidthPercent}%` }}
+            >
               
               {/* Simulator width/view controls */}
               <div className="h-14 bg-surface-soft border-b border-sand-border/30 px-6 flex justify-between items-center z-10 print:hidden select-none">
                 <span className="font-label-caps text-label-caps text-brown-muted font-bold">100% REAL-TIME LIVE PREVIEW</span>
                 
-                <div className="flex items-center gap-1.5 bg-surface-bright border border-sand-border rounded-full p-1 shadow-sm">
-                  {(["desktop", "tablet", "mobile"] as const).map((w) => (
-                    <button
-                      key={w}
-                      onClick={() => setPreviewWidth(w)}
-                      className={`px-3 py-1 rounded-full font-body-sm text-[11px] font-bold uppercase transition-all cursor-pointer ${
-                        previewWidth === w
-                          ? "bg-secondary text-white shadow-sm"
-                          : "text-brown-muted hover:text-primary"
-                      }`}
-                    >
-                      {w}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 bg-surface-bright border border-sand-border rounded-full p-1 shadow-sm">
+                    {(["desktop", "tablet", "mobile"] as const).map((w) => (
+                      <button
+                        key={w}
+                        onClick={() => setPreviewWidth(w)}
+                        className={`px-3 py-1 rounded-full font-body-sm text-[11px] font-bold uppercase transition-all cursor-pointer ${
+                          previewWidth === w
+                            ? "bg-secondary text-white shadow-sm"
+                            : "text-brown-muted hover:text-primary"
+                        }`}
+                      >
+                        {w}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setIsFullscreenPreview(!isFullscreenPreview)}
+                    className="bg-surface-bright hover:bg-sand border border-sand-border p-2 rounded-full font-bold font-body-sm text-[12px] flex items-center justify-center cursor-pointer transition-colors shadow-sm text-brown-muted hover:text-primary"
+                    title={isFullscreenPreview ? "Split View" : "Fullscreen Preview"}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {isFullscreenPreview ? "splitscreen" : "fullscreen"}
+                    </span>
+                  </button>
                 </div>
               </div>
 
               {/* Simulator Frame Container */}
               <div className="flex-1 overflow-y-auto p-6 bg-background-cream/50 flex justify-center items-start">
                 <div
-                  className={`bg-background text-on-surface warm-shadow border border-sand-border/60 transition-all duration-300 rounded-xl overflow-hidden ${
+                  className={`bg-background text-on-surface warm-shadow border border-sand-border/60 transition-all duration-300 rounded-xl overflow-hidden h-[98%] max-h-[850px] ${
                     previewWidth === "desktop"
                       ? "w-full max-w-full"
                       : previewWidth === "tablet"
@@ -1177,10 +1366,12 @@ export default function AdminPage() {
                       : "w-[390px] max-w-full"
                   }`}
                 >
-                  <div className="pointer-events-none scale-[0.98] origin-top">
-                    {/* Render exact layout using real customer component */}
-                    <RecipeDetailClient recipe={selectedRecipe} allRecipes={recipes} />
-                  </div>
+                  <iframe
+                    ref={iframeRef}
+                    src="/admin/preview"
+                    className="w-full h-full border-none bg-background"
+                    title="Cozy Kitchen Live Preview Simulator"
+                  />
                 </div>
               </div>
             </div>
@@ -1189,6 +1380,22 @@ export default function AdminPage() {
         )}
 
       </div>
+
+      {/* Dynamic Image Upload Status Notifications */}
+      {isUploading && (
+        <div className="fixed bottom-6 right-6 bg-secondary text-white px-5 py-3 rounded-full font-bold shadow-lg z-50 flex items-center gap-2 animate-bounce select-none">
+          <span className="material-symbols-outlined animate-spin text-sm">hourglass_empty</span>
+          <span className="text-[12px] font-body-sm">Uploading Image to Vercel Blob...</span>
+        </div>
+      )}
+      {uploadError && (
+        <div className="fixed bottom-6 right-6 bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-lg z-50 flex items-center gap-2 select-none">
+          <span className="material-symbols-outlined text-sm">error</span>
+          <span className="text-[12px] font-body-sm">{uploadError}</span>
+          <button onClick={() => setUploadError(null)} className="text-white hover:text-red-200 ml-1 font-bold text-sm">×</button>
+        </div>
+      )}
+
     </div>
   );
 }

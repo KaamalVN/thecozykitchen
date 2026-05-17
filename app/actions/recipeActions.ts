@@ -190,3 +190,25 @@ export async function saveHomepageSettings(
     return { success: false, error: e.message || "Failed to save home settings" };
   }
 }
+
+// Upload image directly to Vercel Blob
+export async function uploadImageAction(
+  passphrase: string,
+  fileName: string,
+  fileBase64: string
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const correct = getPassphrase();
+  if (passphrase !== correct) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  try {
+    const buffer = Buffer.from(fileBase64, "base64");
+    const response = await safePut(`images/${Date.now()}-${fileName}`, buffer, {
+      addRandomSuffix: true,
+    });
+    return { success: true, url: response.url };
+  } catch (e: any) {
+    return { success: false, error: e.message || "Failed to upload image" };
+  }
+}

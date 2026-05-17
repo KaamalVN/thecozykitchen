@@ -35,11 +35,12 @@ const isBlobEnabled = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 const getLocalDir = () => path.join(process.cwd(), "data", "recipes");
 
 // Safe Vercel Blob Put wrapper that automatically detects and handles Private Stores
-export async function safePut(pathname: string, content: string, options: { addRandomSuffix?: boolean } = {}) {
+export async function safePut(pathname: string, content: string | Buffer, options: { addRandomSuffix?: boolean, allowOverwrite?: boolean } = {}) {
   try {
     return await put(pathname, content, {
       ...options,
       access: "public",
+      allowOverwrite: options.allowOverwrite ?? true,
     });
   } catch (error: any) {
     if (error?.message?.includes("private store") || error?.message?.includes("private access")) {
@@ -47,6 +48,7 @@ export async function safePut(pathname: string, content: string, options: { addR
       return await put(pathname, content, {
         ...options,
         access: "private",
+        allowOverwrite: options.allowOverwrite ?? true,
       });
     }
     throw error;
