@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { list, put } from "@vercel/blob";
+import { list, put, get } from "@vercel/blob";
 
 export interface Recipe {
   slug: string;
@@ -53,6 +53,15 @@ export async function safePut(pathname: string, content: string, options: { addR
   }
 }
 
+// Safe Vercel Blob Get wrapper that automatically detects and handles Private and Public Stores
+export async function safeGet(urlOrPathname: string) {
+  try {
+    return await get(urlOrPathname, { access: "private" });
+  } catch (error) {
+    return await get(urlOrPathname, { access: "public" });
+  }
+}
+
 // Seed Vercel Blob with local files if Vercel Blob is empty
 async function seedBlobIfEmpty() {
   if (!isBlobEnabled()) return;
@@ -101,13 +110,14 @@ export async function getAllRecipes(includeDrafts = false): Promise<Recipe[]> {
       
       const jsonBlobs = blobs.filter((b) => b.pathname.endsWith(".json"));
       
-      // Fetch all blobs in parallel with a short cache revalidation
+      // Fetch all blobs in parallel using Vercel Blob SDK safeGet() to support both Private & Public stores
       const fetched = await Promise.all(
         jsonBlobs.map(async (b) => {
           try {
-            const res = await fetch(b.url, { next: { revalidate: 60 } });
-            if (!res.ok) return null;
-            return (await res.json()) as Recipe;
+            const blobObj = await safeGet(b.url);
+            if (!blobObj) return null;
+            const text = await new Response(blobObj.stream).text();
+            return JSON.parse(text) as Recipe;
           } catch (err) {
             console.error(`Error fetching recipe blob ${b.pathname}:`, err);
             return null;
@@ -161,9 +171,10 @@ export async function getRecipeBySlug(slug: string): Promise<Recipe | null> {
       const { blobs } = await list({ prefix: `recipes/${slug}.json` });
       const blob = blobs.find((b) => b.pathname === `recipes/${slug}.json`);
       if (blob) {
-        const res = await fetch(blob.url, { next: { revalidate: 60 } });
-        if (res.ok) {
-          return (await res.json()) as Recipe;
+        const blobObj = await safeGet(blob.url);
+        if (blobObj) {
+          const text = await new Response(blobObj.stream).text();
+          return JSON.parse(text) as Recipe;
         }
       }
       return null;
@@ -196,9 +207,10 @@ export async function getHomeSettings(): Promise<HomeSettings> {
       const { blobs } = await list({ prefix: "settings.json" });
       const blob = blobs.find((b) => b.pathname === "settings.json");
       if (blob) {
-        const res = await fetch(blob.url, { next: { revalidate: 10 } });
-        if (res.ok) {
-          return (await res.json()) as HomeSettings;
+        const blobObj = await safeGet(blob.url);
+        if (blobObj) {
+          const text = await new Response(blobObj.stream).text();
+          return JSON.parse(text) as HomeSettings;
         }
       }
     } catch (error) {
