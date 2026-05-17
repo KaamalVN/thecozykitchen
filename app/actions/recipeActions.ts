@@ -2,8 +2,8 @@
 
 import fs from "fs";
 import path from "path";
-import { Recipe, getAllRecipes, getRecipeBySlug, HomeSettings, getHomeSettings, saveHomeSettings } from "@/lib/recipes";
-import { put, del } from "@vercel/blob";
+import { Recipe, getAllRecipes, getRecipeBySlug, HomeSettings, getHomeSettings, saveHomeSettings, safePut } from "@/lib/recipes";
+import { del } from "@vercel/blob";
 
 const getPassphrase = () => {
   return process.env.ADMIN_PASSPHRASE || "cozykitchen";
@@ -51,8 +51,7 @@ export async function saveRecipe(
         await del(`recipes/${originalSlug}.json`);
       }
       
-      await put(`recipes/${slug}.json`, JSON.stringify(recipeData, null, 2), {
-        access: "public",
+      await safePut(`recipes/${slug}.json`, JSON.stringify(recipeData, null, 2), {
         addRandomSuffix: false,
       });
       return { success: true };
@@ -128,8 +127,7 @@ export async function duplicateRecipe(passphrase: string, slug: string): Promise
         status: "draft"
       };
 
-      await put(`recipes/${newSlug}.json`, JSON.stringify(duplicatedRecipe, null, 2), {
-        access: "public",
+      await safePut(`recipes/${newSlug}.json`, JSON.stringify(duplicatedRecipe, null, 2), {
         addRandomSuffix: false,
       });
       return { success: true, newSlug };

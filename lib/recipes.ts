@@ -34,6 +34,25 @@ const isBlobEnabled = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 // Local fallback recipes directory
 const getLocalDir = () => path.join(process.cwd(), "data", "recipes");
 
+// Safe Vercel Blob Put wrapper that automatically detects and handles Private Stores
+export async function safePut(pathname: string, content: string, options: { addRandomSuffix?: boolean } = {}) {
+  try {
+    return await put(pathname, content, {
+      ...options,
+      access: "public",
+    });
+  } catch (error: any) {
+    if (error?.message?.includes("private store") || error?.message?.includes("private access")) {
+      console.log(`Detected private Vercel Blob store. Uploading ${pathname} with private access...`);
+      return await put(pathname, content, {
+        ...options,
+        access: "private",
+      });
+    }
+    throw error;
+  }
+}
+
 // Seed Vercel Blob with local files if Vercel Blob is empty
 async function seedBlobIfEmpty() {
   if (!isBlobEnabled()) return;
@@ -52,8 +71,7 @@ async function seedBlobIfEmpty() {
         const fileContent = fs.readFileSync(filePath, "utf-8");
         const slug = filename.replace(".json", "");
         
-        await put(`recipes/${slug}.json`, fileContent, {
-          access: "public",
+        await safePut(`recipes/${slug}.json`, fileContent, {
           addRandomSuffix: false,
         });
         console.log(`Seeded recipe: ${slug} to Vercel Blob`);
@@ -65,8 +83,7 @@ async function seedBlobIfEmpty() {
       showcaseSlugs: ["chicken-biryani", "egg-puff", "coconut-chicken-curry"],
       todaysPickSlug: null,
     };
-    await put("settings.json", JSON.stringify(defaultSettings, null, 2), {
-      access: "public",
+    await safePut("settings.json", JSON.stringify(defaultSettings, null, 2), {
       addRandomSuffix: false,
     });
     console.log("Seeded default settings.json to Vercel Blob");
@@ -208,8 +225,7 @@ export async function getHomeSettings(): Promise<HomeSettings> {
 
 export async function saveHomeSettings(settings: HomeSettings): Promise<void> {
   if (isBlobEnabled()) {
-    await put("settings.json", JSON.stringify(settings, null, 2), {
-      access: "public",
+    await safePut("settings.json", JSON.stringify(settings, null, 2), {
       addRandomSuffix: false,
     });
   } else {
