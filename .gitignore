@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+the-cozy-kitchen-design-doc.md
 
 # debug
 npm-debug.log*
@@ -39,3 +40,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+stitch_cozy_kitchen_design_system

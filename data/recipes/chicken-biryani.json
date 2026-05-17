@@ -1,0 +1,61 @@
+{
+  "slug": "chicken-biryani",
+  "title": "Grandmother's Chicken Biryani",
+  "description": "A fragrant, layered rice dish slow-cooked with tender chicken, fried onions, and whole spices. A festive weekend classic.",
+  "coverImage": "https://images.unsplash.com/photo-1633945274405-b6c8069047b0?q=80&w=600&auto=format&fit=crop",
+  "categories": ["Rice", "All"],
+  "tags": ["Spicy", "Festive", "Chicken", "Slow Cooked"],
+  "difficulty": "Hard",
+  "prepTime": 30,
+  "cookTime": 60,
+  "servings": 4,
+  "status": "published",
+  "nutrition": {
+    "calories": 620,
+    "protein": "38g",
+    "carbs": "68g",
+    "fat": "18g"
+  },
+  "blocks": [
+    { "type": "hero-image", "src": "https://images.unsplash.com/photo-1633945274405-b6c8069047b0?q=80&w=600&auto=format&fit=crop", "alt": "A highly aromatic pot of hot chicken biryani with long grain rice" },
+    { "type": "intro", "text": "This is the biryani I grew up eating on Sundays. My grandmother would spend hours frying onions, soaking basmati rice, and layering it with chicken marinated in warm yogurt and spices. It's truly a labor of love." },
+    { "type": "meta-bar" },
+    {
+      "type": "ingredients",
+      "sections": [
+        {
+          "heading": "For the Chicken Marinade",
+          "items": [
+            { "qty": 500, "unit": "g", "item": "chicken pieces" },
+            { "qty": 1, "unit": "cup", "item": "plain yogurt" },
+            { "qty": 1, "unit": "tbsp", "item": "ginger-garlic paste" },
+            { "qty": 1, "unit": "tsp", "item": "garam masala" },
+            { "qty": 1.5, "unit": "tsp", "item": "chili powder" }
+          ]
+        },
+        {
+          "heading": "For the Rice Layering",
+          "items": [
+            { "qty": 2, "unit": "cups", "item": "aged Basmati rice, soaked" },
+            { "qty": 2, "unit": "large", "item": "onions, thinly sliced" },
+            { "qty": 0.25, "unit": "cup", "item": "fresh mint leaves" },
+            { "qty": 0.25, "unit": "cup", "item": "fresh cilantro, chopped" },
+            { "qty": 3, "unit": "tbsp", "item": "ghee" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "steps",
+      "items": [
+        { "text": "Marinate the chicken pieces in yogurt, ginger-garlic paste, garam masala, chili powder, and salt. Set aside for at least 1 hour.", "timer": 60 },
+        { "text": "Heat ghee in a heavy-bottomed pot and fry the sliced onions until brown and caramelized. Remove half for layering later.", "timer": 15 },
+        { "text": "Add the marinated chicken to the pot with the remaining onions and cook until the chicken is tender and the oil separates.", "timer": 20 },
+        { "text": "In a separate pot, cook the soaked basmati rice in salted water with whole spices until it is 70% cooked. Drain the rice.", "timer": 8 },
+        { "text": "Layer the cooked chicken with mint, cilantro, caramelized onions, and the partially cooked rice. Drizzle melted ghee and saffron water on top.", "timer": null },
+        { "text": "Cover the pot tightly (traditionally sealed with dough) and cook on very low heat ('dum') for 20 minutes to let the steam infuse.", "timer": 20 }
+      ]
+    },
+    { "type": "tip", "text": "Always use aged long-grain basmati rice for that perfect, non-sticky texture where every grain is separate." }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "slug": "egg-masala",
+  "title": "Dhaba-Style Egg Masala",
+  "description": "Hard-boiled eggs pan-fried and simmered in a spicy, robust onion-tomato gravy. Perfect with buttery flatbreads.",
+  "coverImage": "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=600&auto=format&fit=crop",
+  "categories": ["Curries", "Egg Dishes", "All"],
+  "tags": ["Spicy", "Egg", "Quick"],
+  "difficulty": "Easy",
+  "prepTime": 10,
+  "cookTime": 15,
+  "servings": 3,
+  "status": "published",
+  "nutrition": {
+    "calories": 240,
+    "protein": "14g",
+    "carbs": "8g",
+    "fat": "16g"
+  },
+  "blocks": [
+    { "type": "hero-image", "src": "https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=600&auto=format&fit=crop", "alt": "Hard boiled eggs in a rich orange tomato curry" },
+    { "type": "intro", "text": "This spicy and aromatic egg masala is inspired by roadside dhabas. The secret is to pan-fry the boiled eggs until they get a crispy, blistered golden skin before cooking them in the gravy." },
+    { "type": "meta-bar" },
+    {
+      "type": "ingredients",
+      "sections": [
+        {
+          "heading": "Base Ingredients",
+          "items": [
+            { "qty": 4, "unit": "large", "item": "eggs, hard-boiled and peeled" },
+            { "qty": 2, "unit": "tbsp", "item": "cooking oil" },
+            { "qty": 1, "unit": "medium", "item": "onion, finely chopped" },
+            { "qty": 2, "unit": "small", "item": "tomatoes, finely chopped" }
+          ]
+        },
+        {
+          "heading": "Spices & Aromatics",
+          "items": [
+            { "qty": 1, "unit": "tsp", "item": "ginger-garlic paste" },
+            { "qty": 0.5, "unit": "tsp", "item": "turmeric powder" },
+            { "qty": 1, "unit": "tsp", "item": "kashmiri chili powder" },
+            { "qty": 1, "unit": "tsp", "item": "garam masala" },
+            { "qty": 1, "unit": "tsp", "item": "kasuri methi (dried fenugreek)" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "steps",
+      "items": [
+        { "text": "Prick the hard-boiled eggs with a fork. Heat 1 tbsp oil in a pan, add a pinch of turmeric and chili powder, and shallow-fry the eggs until golden and blistered. Set aside.", "timer": 3 },
+        { "text": "In the same pan, add the remaining oil and sauté chopped onions until brown.", "timer": 5 },
+        { "text": "Add the ginger-garlic paste and cook for 1 minute. Add tomatoes, turmeric, chili powder, and cook until tomatoes mush down.", "timer": 4 },
+        { "text": "Add half a cup of water, bring to a simmer, and stir in the pan-fried eggs.", "timer": 2 },
+        { "text": "Simmer for 3 minutes, then finish with garam masala, kasuri methi crushed between your palms, and fresh cilantro.", "timer": 3 }
+      ]
+    },
+    { "type": "tip", "text": "Pricking the eggs before shallow frying is crucial; it prevents them from bursting in the hot oil!" }
+  ]
+}

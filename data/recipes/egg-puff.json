@@ -1,0 +1,59 @@
+{
+  "slug": "egg-puff",
+  "title": "Golden Crispy Egg Puff",
+  "description": "Flaky, layered puff pastry filled with a spiced hard-boiled egg and caramelized onion masala. A classic bakery treat.",
+  "coverImage": "https://images.unsplash.com/photo-1608039829572-78524f79c4c7?q=80&w=600&auto=format&fit=crop",
+  "categories": ["Snacks", "Egg Dishes", "All"],
+  "tags": ["Baking", "Crispy", "Egg", "Quick"],
+  "difficulty": "Easy",
+  "prepTime": 15,
+  "cookTime": 20,
+  "servings": 4,
+  "status": "published",
+  "nutrition": {
+    "calories": 310,
+    "protein": "8g",
+    "carbs": "22g",
+    "fat": "20g"
+  },
+  "blocks": [
+    { "type": "hero-image", "src": "https://images.unsplash.com/photo-1608039829572-78524f79c4c7?q=80&w=600&auto=format&fit=crop", "alt": "Golden, flaky egg puffs on a baking tray" },
+    { "type": "intro", "text": "Walk into any South Indian bakery in the afternoon, and you'll be greeted by the warm, buttery aroma of freshly baked egg puffs. This recipe shortcuts the pastry with store-bought puff sheets, but the spiced onion filling is 100% home-style goodness." },
+    { "type": "meta-bar" },
+    {
+      "type": "ingredients",
+      "sections": [
+        {
+          "heading": "Base Ingredients",
+          "items": [
+            { "qty": 4, "unit": "large", "item": "eggs, hard-boiled and halved" },
+            { "qty": 1, "unit": "sheet", "item": "puff pastry, thawed" },
+            { "qty": 1, "unit": "large", "item": "egg, beaten (for egg wash)" }
+          ]
+        },
+        {
+          "heading": "Onion Masala Filling",
+          "items": [
+            { "qty": 2, "unit": "large", "item": "onions, thinly sliced" },
+            { "qty": 1, "unit": "tsp", "item": "ginger-garlic paste" },
+            { "qty": 0.5, "unit": "tsp", "item": "chili powder" },
+            { "qty": 0.5, "unit": "tsp", "item": "garam masala" },
+            { "qty": 1, "unit": "tbsp", "item": "oil" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "steps",
+      "items": [
+        { "text": "Preheat your oven to 400°F (200°C) and line a baking sheet with parchment paper.", "timer": null },
+        { "text": "Heat oil in a pan, add sliced onions and sauté until caramelized and soft. Stir in ginger-garlic paste, chili powder, and garam masala; cook for 2 minutes and let cool.", "timer": 8 },
+        { "text": "Roll out the puff pastry sheet and cut it into four equal squares.", "timer": null },
+        { "text": "Place a spoonful of the caramelized onion masala in the center of each square, then place half a hard-boiled egg (cut side down) on top.", "timer": null },
+        { "text": "Fold the opposite corners of the pastry over the egg and press down firmly to seal.", "timer": null },
+        { "text": "Brush the tops with the beaten egg wash and bake for 20 minutes until golden brown and puffed.", "timer": 20 }
+      ]
+    },
+    { "type": "tip", "text": "Make sure your onion masala has cooled down before placing it on the pastry, otherwise the pastry butter will melt and won't puff up!" }
+  ]
+}
