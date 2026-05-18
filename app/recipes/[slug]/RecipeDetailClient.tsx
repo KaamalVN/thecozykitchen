@@ -612,16 +612,18 @@ export default function RecipeDetailClient({ recipe, allRecipes }: RecipeDetailC
 
   return (
     <>
-      <Navbar
-        activeCategory={activeCategory}
-        onSelectCategory={(cat) => {
-          setActiveCategory(cat);
-          // Redirection triggers
-        }}
-        onOpenSearch={() => {}}
-        darkMode={darkMode}
-        onToggleDarkMode={handleToggleDarkMode}
-      />
+      <div className="print:hidden">
+        <Navbar
+          activeCategory={activeCategory}
+          onSelectCategory={(cat) => {
+            setActiveCategory(cat);
+            // Redirection triggers
+          }}
+          onOpenSearch={() => {}}
+          darkMode={darkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+        />
+      </div>
 
       {/* Reading Progress Bar */}
       <div className="fixed top-0 left-0 w-full h-[5px] bg-sand/30 dark:bg-brown-muted/10 z-[60] print:hidden">
@@ -717,7 +719,7 @@ export default function RecipeDetailClient({ recipe, allRecipes }: RecipeDetailC
         </div>
 
         {/* Recipe Columns Split Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-section-gap items-start relative w-full mt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-section-gap items-start relative w-full mt-2 print:hidden">
           
           {/* Main Story & Recipe Content Block (Dynamic) */}
           <div className="lg:col-span-8 space-y-2 order-2 lg:order-1">
@@ -738,32 +740,86 @@ export default function RecipeDetailClient({ recipe, allRecipes }: RecipeDetailC
         </div>
 
         {/* Print-specific layout block for ingredients & steps */}
-        <div className="hidden print:block space-y-6">
-          <hr className="border-t-2 border-black my-8" />
-          <h2 className="text-3xl font-bold font-fraunces text-black">Ingredients</h2>
-          {ingredientsBlock?.sections?.map((sec: any, sIdx: number) => (
-            <div key={sIdx} className="mb-4">
-              {sec.heading && <h3 className="text-xl font-bold font-fraunces mt-2 mb-2 text-black uppercase">{sec.heading}</h3>}
-              <ul className="list-disc pl-6 space-y-1 text-black font-body">
-                {sec.items?.map((item: any, iIdx: number) => (
-                  <li key={iIdx}>
-                    {item.qty && <span className="font-bold mr-1">{formatQty(item.qty)}</span>}
-                    {item.unit && <span className="mr-1">{item.unit}</span>}
-                    {item.item}
+        {/* Print-specific layout block for ingredients & steps */}
+        <div className="hidden print:block space-y-6 text-black">
+          {recipe.coverImage && (
+            <div className="relative w-full h-64 rounded-2xl overflow-hidden mb-6 border border-black/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={recipe.coverImage}
+                alt={recipe.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {recipe.description && (
+            <p className="text-lg italic font-body text-neutral-800 leading-relaxed mb-6">
+              {recipe.description}
+            </p>
+          )}
+
+          <div className="grid grid-cols-4 gap-4 text-center border-y-2 border-black/20 py-4 my-6 font-body text-black">
+            <div>
+              <div className="font-bold text-xs uppercase tracking-wider text-neutral-500">Prep Time</div>
+              <div className="text-lg font-bold mt-1">{recipe.prepTime} mins</div>
+            </div>
+            <div>
+              <div className="font-bold text-xs uppercase tracking-wider text-neutral-500">Cook Time</div>
+              <div className="text-lg font-bold mt-1">{recipe.cookTime} mins</div>
+            </div>
+            <div>
+              <div className="font-bold text-xs uppercase tracking-wider text-neutral-500">Total Time</div>
+              <div className="text-lg font-bold mt-1">{(recipe.prepTime || 0) + (recipe.cookTime || 0)} mins</div>
+            </div>
+            <div>
+              <div className="font-bold text-xs uppercase tracking-wider text-neutral-500">Servings</div>
+              <div className="text-lg font-bold mt-1">{recipe.servings} servings</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-8 mt-8">
+            {/* Ingredients Section */}
+            <div className="col-span-5">
+              <h2 className="text-2xl font-bold font-fraunces text-black border-b border-black pb-2 mb-4">Ingredients</h2>
+              {ingredientsBlock?.sections?.map((sec: any, sIdx: number) => (
+                <div key={sIdx} className="mb-6">
+                  {sec.heading && <h3 className="text-sm font-bold font-fraunces mt-2 mb-3 text-neutral-800 uppercase tracking-wider">{sec.heading}</h3>}
+                  <ul className="space-y-2 text-sm text-black font-body">
+                    {sec.items?.map((item: any, iIdx: number) => (
+                      <li key={iIdx} className="flex items-start gap-1.5 leading-relaxed">
+                        <span className="text-neutral-400 mt-1 select-none text-[8px]">•</span>
+                        <span>
+                          {item.qty && <span className="font-bold mr-1">{formatQty(item.qty)}</span>}
+                          {item.unit && <span className="mr-1 font-medium">{item.unit}</span>}
+                          <span>{item.item}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {/* Instructions Section */}
+            <div className="col-span-7">
+              <h2 className="text-2xl font-bold font-fraunces text-black border-b border-black pb-2 mb-4">Instructions</h2>
+              <ol className="space-y-4 text-sm text-black font-body">
+                {stepsBlock?.items?.map((step: any, sIdx: number) => (
+                  <li key={sIdx} className="flex gap-3 leading-relaxed">
+                    <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full border border-black font-bold text-xs">
+                      {sIdx + 1}
+                    </span>
+                    <p className="text-neutral-900 mt-0.5">{step.text}</p>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </div>
-          ))}
+          </div>
 
-          <h2 className="text-3xl font-bold font-fraunces text-black mt-8">Instructions</h2>
-          <ol className="list-decimal pl-6 space-y-4 text-black font-body">
-            {stepsBlock?.items?.map((step: any, sIdx: number) => (
-              <li key={sIdx} className="pl-2">
-                <p className="text-black leading-relaxed">{step.text}</p>
-              </li>
-            ))}
-          </ol>
+          <div className="border-t border-black/10 pt-6 mt-12 text-center text-xs text-neutral-400">
+            <p>Recipe printed from The Cozy Kitchen — {typeof window !== "undefined" ? window.location.origin : "thecozykitchen.vercel.app"}</p>
+          </div>
         </div>
 
         {/* Related Recipes Section */}
