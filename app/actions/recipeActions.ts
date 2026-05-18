@@ -202,6 +202,14 @@ export async function uploadImageAction(
     return { success: false, error: "Unauthorized" };
   }
 
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    return {
+      success: false,
+      error: "Vercel Blob storage is not connected! Go to Vercel Dashboard -> Storage -> Connect Blob, then redeploy.",
+    };
+  }
+
   try {
     const buffer = Buffer.from(fileBase64, "base64");
     const response = await safePut(`images/${Date.now()}-${fileName}`, buffer, {

@@ -6,6 +6,15 @@ const getPassphrase = () => {
 };
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    console.error("[Vercel Blob Upload] BLOB_READ_WRITE_TOKEN is missing in the environment variables!");
+    return NextResponse.json(
+      { error: "Vercel Blob storage is not connected! Go to Vercel Dashboard -> Storage -> Connect Blob, then redeploy." },
+      { status: 400 }
+    );
+  }
+
   const body = await request.json();
 
   try {
