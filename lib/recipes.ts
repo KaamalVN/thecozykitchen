@@ -28,6 +28,49 @@ export interface HomeSettings {
   todaysPickSlug: string | null;
 }
 
+// Rewrites private Vercel Blob URLs to use our secure server-side proxy endpoint
+export function resolvePrivateUrl(url: string): string {
+  if (!url) return url;
+  if (url.includes(".private.blob.vercel-storage.com")) {
+    return `/api/image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+// Scans recipe data structures and maps private Vercel Blob assets safely
+export function resolvePrivateImageUrls(recipe: Recipe): Recipe {
+  if (!recipe) return recipe;
+  
+  const cloned = { ...recipe };
+  
+  if (cloned.coverImage) {
+    cloned.coverImage = resolvePrivateUrl(cloned.coverImage);
+  }
+  
+  if (Array.isArray(cloned.blocks)) {
+    cloned.blocks = cloned.blocks.map((block: any) => {
+      if (!block) return block;
+      const clonedBlock = { ...block };
+      
+      if (clonedBlock.type === "hero-image" && clonedBlock.src) {
+        clonedBlock.src = resolvePrivateUrl(clonedBlock.src);
+      } else if (clonedBlock.type === "gallery" && Array.isArray(clonedBlock.images)) {
+        clonedBlock.images = clonedBlock.images.map((img: any) => {
+          if (!img) return img;
+          return {
+            ...img,
+            src: resolvePrivateUrl(img.src),
+          };
+        });
+      }
+      
+      return clonedBlock;
+    });
+  }
+  
+  return cloned;
+}
+
 // Check if Vercel Blob is configured
 const isBlobEnabled = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 
@@ -129,7 +172,7 @@ export async function getAllRecipes(includeDrafts = false): Promise<Recipe[]> {
 
       for (const recipe of fetched) {
         if (recipe && (includeDrafts || recipe.status === "published")) {
-          recipes.push(recipe);
+          recipes.push(resolvePrivateImageUrls(recipe));
         }
       }
       return recipes;
@@ -155,7 +198,7 @@ export async function getAllRecipes(includeDrafts = false): Promise<Recipe[]> {
         const fileContent = fs.readFileSync(filePath, "utf-8");
         const recipe = JSON.parse(fileContent) as Recipe;
         if (includeDrafts || recipe.status === "published") {
-          recipes.push(recipe);
+          recipes.push(resolvePrivateImageUrls(recipe));
         }
       } catch (error) {
         console.error(`Error reading or parsing recipe ${filename}:`, error);
@@ -176,7 +219,7 @@ export async function getRecipeBySlug(slug: string): Promise<Recipe | null> {
         const blobObj = await safeGet(blob.url);
         if (blobObj) {
           const text = await new Response(blobObj.stream).text();
-          return JSON.parse(text) as Recipe;
+          return resolvePrivateImageUrls(JSON.parse(text) as Recipe);
         }
       }
       return null;
@@ -195,7 +238,7 @@ export async function getRecipeBySlug(slug: string): Promise<Recipe | null> {
   
   try {
     const fileContent = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(fileContent) as Recipe;
+    return resolvePrivateImageUrls(JSON.parse(fileContent) as Recipe);
   } catch (error) {
     console.error(`Error reading or parsing recipe ${slug}.json:`, error);
     return null;
