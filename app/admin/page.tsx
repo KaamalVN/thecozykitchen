@@ -119,7 +119,7 @@ export default function AdminPage() {
     return () => window.removeEventListener("message", handleParentMessage);
   }, [selectedRecipe]);
 
-  // Direct image uploader to Vercel Blob using Secure Client-side Uploads
+  // Hybrid direct uploader to Vercel Blob (CORS-immune Server Action for <= 4MB, Direct Client-side upload fallback for > 4MB)
   const handleImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     onUploadSuccess: (url: string) => void
@@ -130,20 +130,46 @@ export default function AdminPage() {
     setIsUploading(true);
     setUploadError(null);
 
-    try {
-      const activePassphrase = passphrase || sessionStorage.getItem("admin-passphrase") || "";
-      // Securely upload directly from browser to Vercel Blob storage, bypassing the 4.5MB Serverless limit!
-      const newBlob = await upload(`images/${Date.now()}-${file.name}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({ passphrase: activePassphrase }),
-      });
+    const activePassphrase = passphrase || sessionStorage.getItem("admin-passphrase") || "";
 
-      setIsUploading(false);
-      if (newBlob && newBlob.url) {
-        onUploadSuccess(newBlob.url);
+    try {
+      if (file.size <= 4 * 1024 * 1024) {
+        // File is small enough for a Serverless Function. Use Server Action (100% CORS-Immune!)
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const base64String = (reader.result as string).split(",")[1];
+            const res = await uploadImageAction(activePassphrase, file.name, base64String);
+            setIsUploading(false);
+            if (res.success && res.url) {
+              onUploadSuccess(res.url);
+            } else {
+              setUploadError(res.error || "Upload failed");
+            }
+          } catch (err: any) {
+            setIsUploading(false);
+            setUploadError(err.message || "Failed to upload image.");
+          }
+        };
+        reader.onerror = () => {
+          setIsUploading(false);
+          setUploadError("Failed to read file.");
+        };
+        reader.readAsDataURL(file);
       } else {
-        setUploadError("Upload failed to return secure URL.");
+        // File exceeds Vercel Serverless Function payload limits. Fall back to secure Direct Client-side Upload
+        const newBlob = await upload(`images/${Date.now()}-${file.name}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          clientPayload: JSON.stringify({ passphrase: activePassphrase }),
+        });
+
+        setIsUploading(false);
+        if (newBlob && newBlob.url) {
+          onUploadSuccess(newBlob.url);
+        } else {
+          setUploadError("Upload failed to return secure URL.");
+        }
       }
     } catch (err: any) {
       setIsUploading(false);
