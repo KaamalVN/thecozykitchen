@@ -13,6 +13,7 @@ import {
   saveHomepageSettings,
   uploadImageAction,
 } from "@/app/actions/recipeActions";
+import { upload } from "@vercel/blob/client";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -118,7 +119,7 @@ export default function AdminPage() {
     return () => window.removeEventListener("message", handleParentMessage);
   }, [selectedRecipe]);
 
-  // Direct image uploader to Vercel Blob
+  // Direct image uploader to Vercel Blob using Secure Client-side Uploads
   const handleImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     onUploadSuccess: (url: string) => void
@@ -130,25 +131,22 @@ export default function AdminPage() {
     setUploadError(null);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64String = (reader.result as string).split(",")[1];
-        const res = await uploadImageAction(passphrase, file.name, base64String);
-        setIsUploading(false);
-        if (res.success && res.url) {
-          onUploadSuccess(res.url);
-        } else {
-          setUploadError(res.error || "Upload failed");
-        }
-      };
-      reader.onerror = () => {
-        setIsUploading(false);
-        setUploadError("Failed to read file");
-      };
-      reader.readAsDataURL(file);
+      // Securely upload directly from browser to Vercel Blob storage, bypassing the 4.5MB Serverless limit!
+      const newBlob = await upload(`images/${Date.now()}-${file.name}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        clientPayload: JSON.stringify({ passphrase }),
+      });
+
+      setIsUploading(false);
+      if (newBlob && newBlob.url) {
+        onUploadSuccess(newBlob.url);
+      } else {
+        setUploadError("Upload failed to return secure URL.");
+      }
     } catch (err: any) {
       setIsUploading(false);
-      setUploadError(err.message || "Failed to upload");
+      setUploadError(err.message || "Failed to upload image.");
     }
   };
 
