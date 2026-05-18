@@ -131,11 +131,12 @@ export default function AdminPage() {
     setUploadError(null);
 
     try {
+      const activePassphrase = passphrase || sessionStorage.getItem("admin-passphrase") || "";
       // Securely upload directly from browser to Vercel Blob storage, bypassing the 4.5MB Serverless limit!
       const newBlob = await upload(`images/${Date.now()}-${file.name}`, file, {
         access: "public",
         handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({ passphrase }),
+        clientPayload: JSON.stringify({ passphrase: activePassphrase }),
       });
 
       setIsUploading(false);

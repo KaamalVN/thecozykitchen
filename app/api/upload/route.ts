@@ -12,34 +12,46 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        // Authenticate with the passphrase passed securely from the client state
+        console.log(`[Vercel Blob Upload] Starting token generation for: ${pathname}`);
+        
         let payload: any = {};
         try {
           if (clientPayload) {
             payload = JSON.parse(clientPayload);
           }
         } catch (e) {
+          console.error("[Vercel Blob Upload] Failed to parse clientPayload:", clientPayload);
           throw new Error("Invalid authorization token payload structure.");
         }
 
         const correct = getPassphrase();
-        if (payload.passphrase !== correct) {
+        const clientPass = payload.passphrase || "";
+        
+        console.log(`[Vercel Blob Upload] Checking authentication.`);
+        console.log(`[Vercel Blob Upload] Client provided passphrase length: ${clientPass.length}`);
+        
+        if (clientPass !== correct) {
+          console.error("[Vercel Blob Upload] Authorization failed: Passphrase mismatch.");
           throw new Error("Unauthorized access. Admin passphrase incorrect.");
         }
 
+        console.log("[Vercel Blob Upload] Authorization successful. Generating client token...");
+
         return {
-          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+          allowedContentTypes: ["image/*"], // Accepts any image type to prevent mime mismatches
           tokenPayload: JSON.stringify({ role: "admin" }),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log("Cozy Kitchen Direct Upload Completed:", blob.url);
+        console.log("[Vercel Blob Upload] Direct Upload Completed Successfully:", blob.url);
       },
     });
 
     return NextResponse.json(jsonResponse);
   } catch (error: any) {
+    console.error("[Vercel Blob Upload] Server endpoint error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
