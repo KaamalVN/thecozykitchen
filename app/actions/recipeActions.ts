@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { Recipe, getAllRecipes, getRecipeBySlug, HomeSettings, getHomeSettings, saveHomeSettings, safePut } from "@/lib/recipes";
 import { del } from "@vercel/blob";
+import { revalidateTag } from "next/cache";
 
 const getPassphrase = () => {
   return process.env.ADMIN_PASSPHRASE || "cozykitchen";
@@ -54,6 +55,7 @@ export async function saveRecipe(
       await safePut(`recipes/${slug}.json`, JSON.stringify(recipeData, null, 2), {
         addRandomSuffix: false,
       });
+      revalidateTag("recipes-all", "max");
       return { success: true };
     }
 
@@ -73,6 +75,7 @@ export async function saveRecipe(
 
     const filePath = path.join(dir, `${slug}.json`);
     fs.writeFileSync(filePath, JSON.stringify(recipeData, null, 2), "utf-8");
+    revalidateTag("recipes-all", "max");
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message || "Failed to save recipe" };
@@ -89,6 +92,7 @@ export async function deleteRecipe(passphrase: string, slug: string): Promise<{ 
   try {
     if (isBlobEnabled()) {
       await del(`recipes/${slug}.json`);
+      revalidateTag("recipes-all", "max");
       return { success: true };
     }
 
@@ -96,6 +100,7 @@ export async function deleteRecipe(passphrase: string, slug: string): Promise<{ 
     const filePath = path.join(process.cwd(), "data", "recipes", `${slug}.json`);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      revalidateTag("recipes-all", "max");
       return { success: true };
     }
     return { success: false, error: "Recipe file not found" };
@@ -130,6 +135,7 @@ export async function duplicateRecipe(passphrase: string, slug: string): Promise
       await safePut(`recipes/${newSlug}.json`, JSON.stringify(duplicatedRecipe, null, 2), {
         addRandomSuffix: false,
       });
+      revalidateTag("recipes-all", "max");
       return { success: true, newSlug };
     }
 
@@ -154,6 +160,7 @@ export async function duplicateRecipe(passphrase: string, slug: string): Promise
     };
 
     fs.writeFileSync(destPath, JSON.stringify(duplicatedRecipe, null, 2), "utf-8");
+    revalidateTag("recipes-all", "max");
     return { success: true, newSlug };
   } catch (e: any) {
     return { success: false, error: e.message || "Failed to duplicate recipe" };
@@ -185,6 +192,7 @@ export async function saveHomepageSettings(
   }
   try {
     await saveHomeSettings(settings);
+    revalidateTag("settings", "max");
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message || "Failed to save home settings" };

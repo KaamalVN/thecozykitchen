@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { list, put, get } from "@vercel/blob";
+import { unstable_cache } from "next/cache";
 
 export interface Recipe {
   slug: string;
@@ -146,39 +147,61 @@ async function seedBlobIfEmpty() {
   }
 }
 
+// Raw Vercel Blob query for recipes
+async function fetchRecipesFromBlobRaw(): Promise<Recipe[]> {
+  if (!isBlobEnabled()) return [];
+  try {
+    const { blobs } = await list({ prefix: "recipes/" });
+    const jsonBlobs = blobs.filter((b) => b.pathname.endsWith(".json"));
+    
+    const fetched = await Promise.all(
+      jsonBlobs.map(async (b) => {
+        try {
+          const blobObj = await safeGet(b.url);
+          if (!blobObj) return null;
+          const text = await new Response(blobObj.stream).text();
+          return JSON.parse(text) as Recipe;
+        } catch (err) {
+          console.error(`Error fetching recipe blob ${b.pathname}:`, err);
+          return null;
+        }
+      })
+    );
+
+    const recipes: Recipe[] = [];
+    for (const recipe of fetched) {
+      if (recipe) {
+        recipes.push(resolvePrivateImageUrls(recipe));
+      }
+    }
+    return recipes;
+  } catch (error) {
+    console.error("Error loading raw recipes from Vercel Blob:", error);
+    return [];
+  }
+}
+
+// Next.js persistent cache wrapper for recipes
+const getCachedRecipes = unstable_cache(
+  async () => {
+    console.log("[Recipes Cache] Cache miss! Querying Vercel Blob...");
+    await seedBlobIfEmpty();
+    return await fetchRecipesFromBlobRaw();
+  },
+  ["recipes-all"],
+  {
+    tags: ["recipes-all"],
+    revalidate: 3600, // Safety revalidation hourly
+  }
+);
+
 export async function getAllRecipes(includeDrafts = false): Promise<Recipe[]> {
   if (isBlobEnabled()) {
-    await seedBlobIfEmpty();
     try {
-      const { blobs } = await list({ prefix: "recipes/" });
-      const recipes: Recipe[] = [];
-      
-      const jsonBlobs = blobs.filter((b) => b.pathname.endsWith(".json"));
-      
-      // Fetch all blobs in parallel using Vercel Blob SDK safeGet() to support both Private & Public stores
-      const fetched = await Promise.all(
-        jsonBlobs.map(async (b) => {
-          try {
-            const blobObj = await safeGet(b.url);
-            if (!blobObj) return null;
-            const text = await new Response(blobObj.stream).text();
-            return JSON.parse(text) as Recipe;
-          } catch (err) {
-            console.error(`Error fetching recipe blob ${b.pathname}:`, err);
-            return null;
-          }
-        })
-      );
-
-      for (const recipe of fetched) {
-        if (recipe && (includeDrafts || recipe.status === "published")) {
-          recipes.push(resolvePrivateImageUrls(recipe));
-        }
-      }
-      return recipes;
+      const allRecipes = await getCachedRecipes();
+      return allRecipes.filter((recipe) => includeDrafts || recipe.status === "published");
     } catch (error) {
-      console.error("Error loading recipes from Vercel Blob:", error);
-      // Fallback to local on error
+      console.error("Error loading recipes from Vercel Blob cache:", error);
     }
   }
 
@@ -211,20 +234,12 @@ export async function getAllRecipes(includeDrafts = false): Promise<Recipe[]> {
 
 export async function getRecipeBySlug(slug: string): Promise<Recipe | null> {
   if (isBlobEnabled()) {
-    await seedBlobIfEmpty();
     try {
-      const { blobs } = await list({ prefix: `recipes/${slug}.json` });
-      const blob = blobs.find((b) => b.pathname === `recipes/${slug}.json`);
-      if (blob) {
-        const blobObj = await safeGet(blob.url);
-        if (blobObj) {
-          const text = await new Response(blobObj.stream).text();
-          return resolvePrivateImageUrls(JSON.parse(text) as Recipe);
-        }
-      }
-      return null;
+      const allRecipes = await getCachedRecipes();
+      const recipe = allRecipes.find((r) => r.slug === slug);
+      return recipe || null;
     } catch (error) {
-      console.error(`Error loading recipe by slug ${slug} from Vercel Blob:`, error);
+      console.error(`Error loading recipe by slug ${slug} from Vercel Blob cache:`, error);
     }
   }
 
@@ -245,21 +260,47 @@ export async function getRecipeBySlug(slug: string): Promise<Recipe | null> {
   }
 }
 
+// Raw settings query
+async function getHomeSettingsRaw(): Promise<HomeSettings> {
+  if (!isBlobEnabled()) {
+    return { showcaseSlugs: [], todaysPickSlug: null };
+  }
+  try {
+    const { blobs } = await list({ prefix: "settings.json" });
+    const blob = blobs.find((b) => b.pathname === "settings.json");
+    if (blob) {
+      const blobObj = await safeGet(blob.url);
+      if (blobObj) {
+        const text = await new Response(blobObj.stream).text();
+        return JSON.parse(text) as HomeSettings;
+      }
+    }
+  } catch (error) {
+    console.error("Error loading raw home settings from Vercel Blob:", error);
+  }
+  return { showcaseSlugs: [], todaysPickSlug: null };
+}
+
+// Next.js persistent cache wrapper for settings
+const getCachedHomeSettings = unstable_cache(
+  async () => {
+    console.log("[Settings Cache] Cache miss! Querying Vercel Blob...");
+    await seedBlobIfEmpty();
+    return await getHomeSettingsRaw();
+  },
+  ["settings"],
+  {
+    tags: ["settings"],
+    revalidate: 3600, // Safety revalidation hourly
+  }
+);
+
 export async function getHomeSettings(): Promise<HomeSettings> {
   if (isBlobEnabled()) {
-    await seedBlobIfEmpty();
     try {
-      const { blobs } = await list({ prefix: "settings.json" });
-      const blob = blobs.find((b) => b.pathname === "settings.json");
-      if (blob) {
-        const blobObj = await safeGet(blob.url);
-        if (blobObj) {
-          const text = await new Response(blobObj.stream).text();
-          return JSON.parse(text) as HomeSettings;
-        }
-      }
+      return await getCachedHomeSettings();
     } catch (error) {
-      console.error("Error loading home settings from Vercel Blob:", error);
+      console.error("Error loading home settings from Vercel Blob cache:", error);
     }
   }
 
