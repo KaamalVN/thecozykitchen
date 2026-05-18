@@ -29,6 +29,11 @@ const nextConfig: NextConfig = {
         hostname: "*.pinterest.com",
       },
     ],
+    localPatterns: [
+      {
+        pathname: "/api/image",
+      },
+    ],
   },
 };
 
