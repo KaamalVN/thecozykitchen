@@ -24,7 +24,10 @@ const dmMono = DM_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#4e6e58",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FDF6EC" },
+    { media: "(prefers-color-scheme: dark)", color: "#1C1108" },
+  ],
 };
 
 export const metadata: Metadata = {
